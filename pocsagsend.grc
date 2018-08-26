@@ -816,13 +816,11 @@ class blk(gr.sync_block):
 	def work(self, input_items, output_items):
 
 		ninput=len(input_items[0])
-		#print("NI",ninput)
 
 		#endless loop: break out with "break" if data is ok
 		while True:
 			if self.state == 0:
 				# state 0 -&gt; send pocsag message 
-				#print("S0")
 
 				# error checking: "counter" should be less then message size
 				if self.count &gt; self.msglen:
@@ -833,23 +831,19 @@ class blk(gr.sync_block):
 				r = self.pocsagmsg[self.count:end]
 
 				if end &gt;= self.msglen:
-					#print("S0a")
 					# wrap over end of pocsag message: fill up with -1's and go to state 1
 					r += [0 for n in range(end-self.msglen)]
 					self.state = 1
 					self.count = end - self.msglen
 					break
 				else:
-					#print("S0b")
 					# pocsag message is not yep completely sent -&gt; just move up pointer
 					self.count = end
 					break
 				#end if
 
 			elif self.state == 1:
-				#print("S1")
 				# state 1 -&gt; send silence ("-1") during "delay" timeticks
-				#print(self.count, self.delay)
 
 				# error checking: "counter" should be less then delay size
 				if self.count &gt; self.delay:
@@ -861,11 +855,9 @@ class blk(gr.sync_block):
 				end = self.count + ninput
 
 				if end &lt; self.delay:
-					#print("S1a")
 					# "delay" periode has not finished yet
 					self.count = end
 				else:
-					#print("S1b")
 					# "delay" periode has finished
 					self.count = 0
 					# go to state 0 (send pocsag message)
@@ -883,8 +875,6 @@ class blk(gr.sync_block):
 			#end if
 		#end while
 
-		#print(len(r))
-
 		output_items[0][:]=np.array(r, dtype=np.int8)
 
 		return len(output_items[0])
@@ -898,7 +888,7 @@ class blk(gr.sync_block):
     </param>
     <param>
       <key>delay</key>
-      <value>pocsagbitrate</value>
+      <value>1200</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -926,7 +916,7 @@ class blk(gr.sync_block):
     </param>
     <param>
       <key>text</key>
-      <value>'ON1ARF POCSAG'</value>
+      <value>'ON1ARF pocsag Python TEST'</value>
     </param>
   </block>
   <block>
