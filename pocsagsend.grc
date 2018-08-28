@@ -287,7 +287,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>6</value>
+      <value>3</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -350,7 +350,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -375,69 +375,6 @@
     <param>
       <key>sensitivity</key>
       <value>2.0 * math.pi * max_deviation / float(symrate)</value>
-    </param>
-  </block>
-  <block>
-    <key>analog_sig_source_x</key>
-    <param>
-      <key>amp</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>freq</key>
-      <value>pocsagbitrate</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(64, 132)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>analog_sig_source_x_0</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>offset</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>int</value>
-    </param>
-    <param>
-      <key>samp_rate</key>
-      <value>pocsagbitrate</value>
-    </param>
-    <param>
-      <key>waveform</key>
-      <value>analog.GR_SQR_WAVE</value>
     </param>
   </block>
   <block>
@@ -507,7 +444,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -597,7 +534,7 @@
     </param>
     <param>
       <key>_io_cache</key>
-      <value>('pocsag generator', 'blk', [('number', '2060073'), ('source', '0'), ('delay', '1200'), ('text', "'ON1ARF pocsag Python TEST'")], [('0', 'int')], [('0', 'byte')], '')</value>
+      <value>('pocsag generator', 'pocsagsender', [('number', '2060073'), ('source', '0'), ('sleeptime', '5'), ('text', "'ON1ARF pocsag Python gnuradio'")], [], [('0', 'byte')], '')</value>
     </param>
     <param>
       <key>_source_code</key>
@@ -613,10 +550,12 @@ from gnuradio import gr
 
 from bitstring import BitArray
 
+import time
 
 
-class blk(gr.sync_block):
-	def CalculateCRCandParity(self,datatype,data):
+
+class pocsagsender(gr.sync_block):
+	def __CalculateCRCandParity(self,datatype,data):
 		cw=data&lt;&lt;11 
 
 		# make leftmost bit "1" for datatype 1 (text)
@@ -652,7 +591,7 @@ class blk(gr.sync_block):
 	# end Calculate CRC and Pairy
 
 
-	def createpocsagmsg(self,address,source,txt):
+	def __createpocsagmsg(self,address,source,txt):
 
 		# checking input
 		if not (0 &lt; address &lt;= 0x1fffff):
@@ -700,7 +639,7 @@ class blk(gr.sync_block):
 		# the message starts at the frame address determined by the last 3 bits of the address
 		cwnum = ((address % 8) &lt;&lt; 1) # codeword number
 
-		codeword[cwnum]=self.CalculateCRCandParity(datatype = 0, data = addressline)
+		codeword[cwnum]=self.__CalculateCRCandParity(datatype = 0, data = addressline)
 
 
 		# part 2: text
@@ -748,64 +687,98 @@ class blk(gr.sync_block):
 			cwnum += 1
 
 			# calculate CRC for a text block (datatype = 1)
-			codeword[cwnum]=self.CalculateCRCandParity(datatype = 1, data = thiscw_i)
+			codeword[cwnum]=self.__CalculateCRCandParity(datatype = 1, data = thiscw_i)
 		#end for (number of 
 
 
 		# done
-		# always return the sync-pattern and the first batch
-		# sync pattern
 
+		# now create complete pocsag message
+		# sync pattern
 		ret = [syncpattern for i in range(18)]
         
-		# add sync codeword
+		# add sync codeword of 1st batch
 		ret.append(synccodeword)
 
 		# add frames 0 to 7 (i.e. codewords 0 to 15)
 		ret += [codeword[n] for n in range(16)]
 
 
-		# if the text has spilled into the 2nd batch, also add that batch
+		
+		# create add 2nd batch if the text has spilled into the 2nd batch
 		if cwnum &gt;=  16:
+			# long message, 2 batches
+			nbatch=2
+
 			# add sync codeword
 			ret.append(synccodeword)
         
 			# and add frames 8 to 15 (i.e. codewords 16 to 31)
 			ret += [codeword[n] for n in range(16,32)]
+		else:
+			# short message, 1 batch
+			nbatch=1
 
-		#end if
+		#end else - ifif
 
 
-		return(ret)
+		return((nbatch,ret))
 
 	# end "createpocsagmsg"
 
 
-	def __init__(self, number = 2060073, source = 0, delay = 1200, text="ON1ARF pocsag Python TEST"):  # only default arguments here
+	def __init__(self, number = 2060073, source = 0,  sleeptime= 5, text="ON1ARF pocsag Python gnuradio"):  # only default arguments here
 		gr.sync_block.__init__(
 			self,
 			name='pocsag generator',
-			in_sig=[np.int32],
+			in_sig=[],
 			out_sig=[np.int8]
 		)
-		self.text = text
-		self.count = 0
+
+
+		self.set_output_multiple(640)
+			# pocsag messages are either 1 batch (35 codeword = 120 octets), or 2 batches (52 codewords = 208 octets)
+			# make the stream a little bit longer to fit a multiple of 20 codewords
+			# pocsag message of 1 batch -&gt; add 5 cw -&gt; 40 (= 20 * 2) codewords
+			# pocsag message of 2 batches -&gt; add 8 cw -&gt; 60 (=20 *3) codewords
+			# 20 cw = 80 octets = 640 bits
+
 		self.state = 0
-		self.delay = delay
+		self.sleeptime = sleeptime
 		self.number= int(number)
 		self.source = int(source)
 
 
-		psmsg=self.createpocsagmsg(number,source,text)
+		nbatch,psmsg=self.__createpocsagmsg(number,source,text)
 
-		self.pocsagmsg=[]
+		# for a short message (nbtach=1), add 5 octest = 40 bits
+		# for a long message (nbatch=2), add 8 octets = 64 bits
+
+		if nbatch == 1:
+			self.pocsagmsg=[0 for i in range(20)]
+		elif nbatch == 2:
+			self.pocsagmsg=[0 for i in range(32)]
+		else:
+			raise ValueError(nbatch)
+		#end if
+			
 
 		for thismsg in psmsg:
 			for c in BitArray(uint=thismsg,length=32).bin:
 				self.pocsagmsg.append(1 if c == '1' else -1)
 		#end for
 
+		# now add tail (all 0)
+		if nbatch == 1:
+			self.pocsagmsg+=[0 for i in range(20)]
+		elif nbatch == 2:
+			self.pocsagmsg+=[0 for i in range(32)]
+		else:
+			raise ValueError(nbatch)
+		#end if
+
 		self.msglen=len(self.pocsagmsg)
+
 	#end __init__
 
 	#def forecast(self, noutput_items, ninput_items_required):
@@ -815,80 +788,29 @@ class blk(gr.sync_block):
 
 	def work(self, input_items, output_items):
 
-		ninput=len(input_items[0])
+		if self.state == 0:
+			# state 0 -&gt; send pocsag message 
 
-		#endless loop: break out with "break" if data is ok
-		while True:
-			if self.state == 0:
-				# state 0 -&gt; send pocsag message 
+			output_items[0][:self.msglen]=np.array(self.pocsagmsg, dtype=np.int8)
 
-				# error checking: "counter" should be less then message size
-				if self.count &gt; self.msglen:
-					self.count = 0
-				#end if
+			self.state = 1 # after this, go to sleep 
+			return self.msglen
+		#end if
 
-				end=self.count + ninput
-				r = self.pocsagmsg[self.count:end]
+		# state 1: sleep
+		time.sleep(self.sleeptime)
 
-				if end &gt;= self.msglen:
-					# wrap over end of pocsag message: fill up with -1's and go to state 1
-					r += [0 for n in range(end-self.msglen)]
-					self.state = 1
-					self.count = end - self.msglen
-					break
-				else:
-					# pocsag message is not yep completely sent -&gt; just move up pointer
-					self.count = end
-					break
-				#end if
+		# then go back to state 0 (transmit)
+		self.state = 0
 
-			elif self.state == 1:
-				# state 1 -&gt; send silence ("-1") during "delay" timeticks
-
-				# error checking: "counter" should be less then delay size
-				if self.count &gt; self.delay:
-					self.count = 0
-				#end if
-
-				r= [0 for i in range(ninput)]
-
-				end = self.count + ninput
-
-				if end &lt; self.delay:
-					# "delay" periode has not finished yet
-					self.count = end
-				else:
-					# "delay" periode has finished
-					self.count = 0
-					# go to state 0 (send pocsag message)
-					self.state = 0
-				#end if
-
-				# done
-				break
-				
-			else:
-				self.state == 0
-				self.count == 0
-				# stay in loop
-				continue
-			#end if
-		#end while
-
-		output_items[0][:]=np.array(r, dtype=np.int8)
-
-		return len(output_items[0])
+		return -1 # return without any data
 	#end work
-# end class "blk"
+# end class "pocsagsender"
 </value>
     </param>
     <param>
       <key>comment</key>
       <value></value>
-    </param>
-    <param>
-      <key>delay</key>
-      <value>1200</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -911,12 +833,16 @@ class blk(gr.sync_block):
       <value>2060073</value>
     </param>
     <param>
+      <key>sleeptime</key>
+      <value>1</value>
+    </param>
+    <param>
       <key>source</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>text</key>
-      <value>'ON1ARF pocsag Python TEST'</value>
+      <value>'ON1ARF pocsag python  demo'</value>
     </param>
   </block>
   <block>
@@ -1866,7 +1792,7 @@ class blk(gr.sync_block):
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1981,7 +1907,7 @@ class blk(gr.sync_block):
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -2118,12 +2044,6 @@ class blk(gr.sync_block):
   <connection>
     <source_block_id>analog_frequency_modulator_fc_0</source_block_id>
     <sink_block_id>blocks_multiply_const_vxx_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>analog_sig_source_x_0</source_block_id>
-    <sink_block_id>epy_block_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
