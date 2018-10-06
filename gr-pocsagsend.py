@@ -30,6 +30,7 @@ parameters. All of them are required to have default values!
 #Release-information:
 #Version: 0.0.1 (20180826)
 #Version: 0.0.2 (20180828)
+#Version: 0.0.3 (20181006): correction idle pattern and changing "20 bits padding" pattern
 #
 # 73s . kristoff - ON1ARF
 
@@ -111,7 +112,7 @@ class pocsagsender(gr.sync_block):
 		syncpattern = 0xAAAAAAAA
 		synccodeword = 0x7cd215d8
 
-		idlepattern  = 0x7a89c197
+		idlepattern  = 0x7ac9c197
 
 		# init all codewords with idle pattern: 2 batches = 16 frames = 32 codewords
 		codeword = [idlepattern for i in range(32)]
@@ -156,7 +157,17 @@ class pocsagsender(gr.sync_block):
 		nbits=len(textbits)
 
 		# 2.4 make the list of bits  a multiple of 20 bits
-		textbits += '0' * (20-(nbits % 20))
+		bitstoadd=20-(nbits % 20)
+
+		if bitstoadd == 20:
+			bitstoadd = 0
+		#end if
+		bitstoadd_rest = bitstoadd%2
+		bitstoadd_2bit = bitstoadd >> 1
+		textbits += '01' * bitstoadd_2bit
+		if bitstoadd_rest == 1:
+			textbits += '0'
+		#end if
 
 
 		# 2.5 for every block of 20 bits, calculate crc and partity, and add to codeword
