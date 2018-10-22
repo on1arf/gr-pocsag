@@ -1,5 +1,5 @@
 # gr-pocsag: a gnuradio embedded python block for sending pocsag messages
-___
+
 ## Description:
 This is the alpha test release of gr-pocsag, a embedded python block for generating and
 sending pocsag message.
@@ -11,8 +11,6 @@ to shut down the transmitter module of the HackRF.
 
 The python code itself is located inside the pocsag_generator.py.
 
-
-___
 ## Install:
 
 1. Install GNU Radio like : https://wiki.gnuradio.org/index.php/InstallingGR
@@ -23,14 +21,11 @@ pip install numpy
 pip install bitstring
 ```
 
-___
 ## Usage:
 
 1. By import the pocsagsend.grc in GNU Radio.
 2. By call ./pocsag_sender.py --RIC %RIC --SUBRIC %SUBRIC% --TEST %TEXT%  (Please edit frequency in script)
 
-
-___
 ## Release-information:
 
 
