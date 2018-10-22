@@ -1,4 +1,4 @@
-#gr-pocsag: a gnuradio embedded python block for sending pocsag messages
+# gr-pocsag: a gnuradio embedded python block for sending pocsag messages
 ___
 ## Description:
 This is the alpha test release of gr-pocsag, a embedded python block for generating and
