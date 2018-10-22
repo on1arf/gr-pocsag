@@ -98,9 +98,9 @@ class pocsagsender(gr.sync_block):
 		#end if
 
 
-		if len(txt) >= 40:
-			txt=txt[:39]
-			print("Warning, text truncated to 39 characters: {txt}".format(txt=txt))
+	#	if len(txt) >= 40:
+	#		txt=txt[:39]
+	#		print("Warning, text truncated to 39 characters: {txt}".format(txt=txt))
 		#end if
 
 		# init pocsag message
@@ -298,7 +298,7 @@ class pocsagsender(gr.sync_block):
 		#end if
 
 		# state 1: sleep
-		time.sleep(self.sleeptime)
+		#time.sleep(self.sleeptime)
 
 		# then go back to state 0 (transmit)
 		self.state = 0
